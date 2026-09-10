@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-light-bg text-light-text dark:bg-dark-bg dark:text-dark-text;
+    font-family: 'Inter', 'Manrope', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/30 dark:bg-white/10 backdrop-blur-xl border border-white/20 dark:border-white/10;
+  }
+
+  .glass-strong {
+    @apply bg-white/40 dark:bg-white/15 backdrop-blur-2xl border border-white/30 dark:border-white/15;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-light-primary to-blue-400 dark:from-dark-primary dark:to-blue-300 bg-clip-text text-transparent;
+  }
+  
+  .glow-focus:focus {
+    @apply ring-2 ring-light-primary/50 dark:ring-dark-primary/50 ring-offset-2 ring-offset-light-bg dark:ring-offset-dark-bg;
+  }
+}
