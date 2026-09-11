@@ -6,11 +6,6 @@ const GEOCODING_URL =
 
 const FORECAST_URL =
   'https://api.open-meteo.com/v1/forecast';
-
-// ==========================================
-// LOCATION TYPE
-// ==========================================
-
 export interface LocationResult {
   id: number;
   name: string;
@@ -24,11 +19,6 @@ export interface LocationResult {
   population?: number;
   feature_code?: string;
 }
-
-// ==========================================
-// NORMALIZE TEXT
-// ==========================================
-
 export const normalizeText = (value: string): string => {
   return value
     .toLowerCase()
@@ -37,9 +27,6 @@ export const normalizeText = (value: string): string => {
     .trim();
 };
 
-// ==========================================
-// WEATHER CONDITION
-// ==========================================
 
 const getWeatherCondition = (
   code: number,
@@ -77,11 +64,6 @@ const getWeatherCondition = (
 
   return 'Clouds';
 };
-
-// ==========================================
-// WEATHER ICON
-// ==========================================
-
 const getWeatherIcon = (
   code: number,
   isDay: boolean
@@ -118,10 +100,6 @@ const getWeatherIcon = (
 
   return isDay ? '03d' : '03n';
 };
-
-// ==========================================
-// SEARCH LOCATIONS
-// ==========================================
 export const searchLocations = async (
   query: string
 ): Promise<LocationResult[]> => {
@@ -157,11 +135,6 @@ const searchQuery =
     if (!results.length) {
       return [];
     }
-
-    // ==========================================
-    // FIX KNOWN INCORRECT LOCATION DATA
-    // ==========================================
-
     const correctedResults = results.map((location) => {
       // Manali, India should be in Himachal Pradesh, not Tamil Nadu
       if (
@@ -176,20 +149,12 @@ const searchQuery =
 
     const normalizedQuery = normalizeText(searchQuery);
 
-    // ==========================================
-    // ONLY MAJOR CITIES
-    // ==========================================
-
     const cityResults = correctedResults.filter((location) => {
       const name = normalizeText(location.name);
 
       const isNameMatch =
         name === normalizedQuery ||
         name.startsWith(normalizedQuery);
-
-      // PPLC = capital city (highest priority)
-      // PPLA/PPLA2/PPLA3/PPLA4 = administrative cities
-      // PPL = populated place (only if population >= 10,000)
       const isCapital = location.feature_code === 'PPLC';
       const isAdministrative = location.feature_code?.startsWith('PPLA');
       const isMajorCity = location.feature_code === 'PPL' && (location.population || 0) >= 10000;
@@ -202,10 +167,6 @@ const searchQuery =
     if (!cityResults.length) {
       return [];
     }
-
-    // ==========================================
-    // REMOVE DUPLICATES
-    // ==========================================
 
     const uniqueLocations = new Map<
       string,
@@ -234,10 +195,6 @@ const searchQuery =
       }
     });
 
-    // ==========================================
-    // SORT BY CITY RELEVANCE
-    // ==========================================
-
     const sortedResults = Array.from(
       uniqueLocations.values()
     ).sort((a, b) => {
@@ -264,9 +221,6 @@ const searchQuery =
       if (aImportant !== bImportant) {
         return aImportant ? -1 : 1;
       }
-
-      // Higher population = more likely to be the
-      // actual city the user wants
       return (
         (b.population || 0) -
         (a.population || 0)
@@ -284,11 +238,6 @@ const searchQuery =
     return [];
   }
 };
-
-// ==========================================
-// WEATHER BY EXACT LOCATION
-// ==========================================
-
 export const getWeatherByLocation = async (
   location: LocationResult
 ): Promise<WeatherData> => {
@@ -335,14 +284,20 @@ export const getWeatherByLocation = async (
     const current = forecastData.current;
 
     const isDay = current.is_day === 1;
+    const currentHourIndex = forecastData.hourly.time.findIndex(
+      (time: string) => {
+        const hourDate = new Date(time);
+        const now = new Date();
+        return hourDate.getHours() === now.getHours() &&
+               hourDate.getDate() === now.getDate();
+      }
+    );
 
-    // ==========================================
-    // HOURLY FORECAST
-    // ==========================================
+    const startIndex = currentHourIndex >= 0 ? currentHourIndex : 0;
 
     const hourlyForecast =
       forecastData.hourly.time
-        .slice(0, 6)
+        .slice(startIndex, startIndex + 6)
         .map(
           (
             time: string,
@@ -350,10 +305,15 @@ export const getWeatherByLocation = async (
           ) => {
             const weatherCode =
               forecastData.hourly
-                .weather_code[index];
+                .weather_code[startIndex + index];
+
+            const hourDate = new Date(time);
+            const now = new Date();
+            const isCurrentHour = hourDate.getHours() === now.getHours() &&
+                                 hourDate.getDate() === now.getDate();
 
             return {
-              time: new Date(
+              time: isCurrentHour ? 'Now' : new Date(
                 time
               ).toLocaleTimeString(
                 'en-US',
@@ -366,7 +326,7 @@ export const getWeatherByLocation = async (
 
               temperature: Math.round(
                 forecastData.hourly
-                  .temperature_2m[index]
+                  .temperature_2m[startIndex + index]
               ),
 
               condition:
@@ -382,11 +342,6 @@ export const getWeatherByLocation = async (
             };
           }
         );
-
-    // ==========================================
-    // 7-DAY FORECAST
-    // ==========================================
-
     const dailyForecast =
       forecastData.daily.time
         .slice(0, 7)
@@ -442,11 +397,6 @@ export const getWeatherByLocation = async (
             };
           }
         );
-
-    // ==========================================
-    // RETURN WEATHER DATA
-    // ==========================================
-
     return {
       city: location.name,
       country: location.country,
@@ -520,12 +470,6 @@ export const getWeatherByLocation = async (
     );
   }
 };
-
-// ==========================================
-// WEATHER BY CITY
-// Manual Search Button
-// ==========================================
-
 export const getWeatherByCity = async (
   city: string
 ): Promise<WeatherData> => {
@@ -535,10 +479,6 @@ export const getWeatherByCity = async (
   if (!locations.length) {
     throw new Error('City not found');
   }
-
-  // IMPORTANT:
-  // Use the exact geocoding result.
-  // Do NOT search the city name again.
   return getWeatherByLocation(
     locations[0]
   );
